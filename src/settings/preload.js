@@ -15,14 +15,5 @@
  */
 /* eslint-disable no-undef */
 const {ipcRenderer} = require('electron');
-const {topBar} = require('../components/top-bar');
-
-require('./settings.browser.css');
 
 window.ipcRenderer = ipcRenderer;
-window.APP_EVENTS = APP_EVENTS;
-window.ELECTRONIM_VERSION = ELECTRONIM_VERSION;
-window.preact = require('preact');
-window.preactHooks = require('preact/hooks');
-window.html = require('htm').bind(window.preact.h);
-window.TopBar = topBar(window.html);

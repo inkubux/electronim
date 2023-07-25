@@ -17,11 +17,19 @@ const {BrowserView} = require('electron');
 const fs = require('fs');
 const path = require('path');
 const HOME_DIR = require('os').homedir();
+const {CLOSE_BUTTON_BEHAVIORS} = require('../constants');
 const {showDialog} = require('../browser-window');
 
 const APP_DIR = '.electronim';
 const SETTINGS_FILE = 'settings.json';
-const DEFAULT_SETTINGS = {tabs: [], enabledDictionaries: ['en-US']};
+const DEFAULT_SETTINGS = {
+  tabs: [],
+  useNativeSpellChecker: false,
+  enabledDictionaries: ['en-US'],
+  theme: 'system',
+  trayEnabled: false,
+  closeButtonBehavior: CLOSE_BUTTON_BEHAVIORS.quit
+};
 
 const webPreferences = {
   contextIsolation: false,
@@ -35,9 +43,17 @@ const webPreferences = {
 const appDir = path.join(HOME_DIR, APP_DIR);
 const settingsPath = path.join(appDir, SETTINGS_FILE);
 
+/**
+ * Wrapper function to retrieve the current system's platform.
+ *
+ * @returns {NodeJS.Platform} the OS platform.
+ */
+const getPlatform = () => process.platform;
+
 const containsTabId = tabs => tabId => tabs.map(({id}) => id).includes(tabId);
 
-const ensureActiveTab = settings => {
+const ensureDefaultValues = settings => {
+  settings = Object.assign(DEFAULT_SETTINGS, settings);
   let {activeTab} = settings;
   const enabledTabs = settings.tabs.filter(({disabled}) => !disabled);
   if (enabledTabs.length > 0 && !containsTabId(enabledTabs)(activeTab)) {
@@ -54,7 +70,7 @@ const loadSettings = () => {
   if (fs.existsSync(settingsPath)) {
     loadedSettings = JSON.parse(fs.readFileSync(settingsPath));
   }
-  return ensureActiveTab(Object.assign(DEFAULT_SETTINGS, loadedSettings));
+  return ensureDefaultValues(loadedSettings);
 };
 
 const writeSettings = settings => {
@@ -63,12 +79,12 @@ const writeSettings = settings => {
 };
 
 const updateSettings = settings =>
-  writeSettings(ensureActiveTab({...loadSettings(), ...settings}));
+  writeSettings(ensureDefaultValues({...loadSettings(), ...settings}));
 
-const openSettingsDialog = mainWindow => {
+const openSettingsDialog = mainWindow => () => {
   const settingsView = new BrowserView({webPreferences});
   settingsView.webContents.loadURL(`file://${__dirname}/index.html`);
   showDialog(mainWindow, settingsView);
 };
 
-module.exports = {loadSettings, updateSettings, openSettingsDialog};
+module.exports = {getPlatform, loadSettings, updateSettings, openSettingsDialog};

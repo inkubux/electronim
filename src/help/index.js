@@ -15,24 +15,22 @@
  */
 const {BrowserView} = require('electron');
 const path = require('path');
-const {handleRedirect} = require('../tab-manager/redirect');
 const {showDialog} = require('../browser-window');
+const {handleRedirect, windowOpenHandler} = require('../tab-manager/redirect');
 
 const webPreferences = {
-  contextIsolation: false,
-  nativeWindowOpen: true,
+  contextIsolation: true,
   nodeIntegration: false,
   sandbox: true,
   preload: path.resolve(__dirname, '..', '..', 'bundles', 'help.preload.js')
 };
 
-const openHelpDialog = mainWindow => () => {
+const openHelpDialog = browserWindow => () => {
   const helpView = new BrowserView({webPreferences});
   helpView.webContents.loadURL(`file://${__dirname}/index.html`);
-  const handleRedirectForCurrentUrl = handleRedirect(helpView);
-  helpView.webContents.on('will-navigate', handleRedirectForCurrentUrl);
-  helpView.webContents.on('new-window', handleRedirectForCurrentUrl);
-  showDialog(mainWindow, helpView);
+  helpView.webContents.on('will-navigate', handleRedirect(helpView));
+  helpView.webContents.setWindowOpenHandler(windowOpenHandler(helpView));
+  showDialog(browserWindow, helpView);
 };
 
 module.exports = {openHelpDialog};

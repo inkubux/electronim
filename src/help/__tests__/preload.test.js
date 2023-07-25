@@ -13,48 +13,45 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-const {waitFor} = require('@testing-library/dom');
-
 describe('Help Module preload test suite', () => {
+  let electron;
   beforeEach(() => {
     jest.resetModules();
+    jest.mock('electron', () => require('../../__tests__').mockElectronInstance());
+    electron = require('electron');
+    window.APP_EVENTS = require('../../constants').APP_EVENTS;
   });
   describe('preload (just for coverage and sanity, see bundle tests)', () => {
     beforeEach(() => {
       jest.mock('../help.browser.css', () => {});
       jest.mock('!val-loader!./docs.browser.val-loader', () => ({
-        docs: {}
+        docs: {
+          one: 'this is a doc'
+        }
       }), {virtual: true});
-      window.APP_EVENTS = {};
-      window.ELECTRONIM_VERSION = '1.33.7';
       require('../preload');
     });
-    test('adds required libraries', () => {
-      expect(window.ELECTRONIM_VERSION).toEqual('1.33.7');
+    describe('creates an API', () => {
+      test('with doc entries', () => {
+        expect(electron.contextBridge.exposeInMainWorld).toHaveBeenCalledWith('electron', {
+          close: expect.toBeFunction(),
+          docs: {one: 'this is a doc'}
+        });
+      });
+      test('with close function', () => {
+        const electronApi = electron.contextBridge.exposeInMainWorld.mock.calls[0][1];
+        electronApi.close();
+        expect(electron.ipcRenderer.send).toHaveBeenCalledWith('closeDialog');
+      });
     });
   });
   describe('preload.bundle', () => {
     beforeEach(() => {
       require('../../../bundles/help.preload');
     });
-    test('loads styles in order', async () => {
-      // When
-      document.body.append(document.createElement('div'));
-      // Then
-      await waitFor(() => expect(document.head.children.length).toBeGreaterThan(0));
-      const styles = Array.from(document.querySelectorAll('style'));
-      expect(styles).toHaveLength(1);
-      expect(styles[0].innerHTML).toContain('.help-root {');
-    });
-    test('adds required libraries', () => {
-      expect(window.ELECTRONIM_VERSION).toEqual('0.0.0');
-      expect(window.preact).not.toBeUndefined();
-      expect(window.preactHooks).not.toBeUndefined();
-      expect(window.html).not.toBeUndefined();
-      expect(window.TopBar).not.toBeUndefined();
-    });
     test('loads document contents with valid asset URLs', () => {
-      expect(window.docs).toEqual(expect.objectContaining({
+      const electronApi = electron.contextBridge.exposeInMainWorld.mock.calls[0][1];
+      expect(electronApi.docs).toEqual(expect.objectContaining({
         'Keyboard-shortcuts.md': expect.stringMatching(/<h1>Keyboard Shortcuts/i),
         'Roadmap.md': expect.any(String),
         'Screenshots.md': expect.stringContaining('<img src="../../docs/screenshots/main.png" alt="Main" />'),

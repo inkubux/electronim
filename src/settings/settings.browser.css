@@ -13,36 +13,27 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
+@import '../styles/main.css';
+
 :root {
-    --default-spacing: 6px;
-    --border-color: #dbdbdb;
+    --settings-row-height: 56px;
+    overflow-y: auto;
 }
 
-.control .checkbox {
-    user-select: none;
+.settings {
+    margin: 0;
+    padding: 16px;
 }
 
-.control .checkbox .checkbox__icon {
-    width: calc(1em + var(--default-spacing));
-    text-align: center;
-}
-
-.settings.container {
-    margin:0;
-    padding: 15px 0;
-}
-
-.settings__button.button {
-    background: none;
-    border-color: transparent;
-}
-
-.settings__button.button:hover {
-    border-color: var(--border-color);
-}
-
-.settings__button.button:not(:last-child) {
-    margin-right: var(--default-spacing);
+.settings .title,
+.settings h2.title {
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    line-height: var(--md-sys-typescale-title-large-line-height);
+    border: 0;
+    padding: 0;
+    margin: 0 0 12px 0;
 }
 
 .settings__tab {
@@ -50,40 +41,102 @@
 }
 
 .settings__new-tab,
-.settings__tab-main,
-.settings__tab-advanced.container {
-    display: inline-flex;
+.settings__tab-main {
+    display: flex;
     align-items: center;
+    justify-content: flex-start;
+    gap: var(--default-spacing);
     width: 100%;
 }
 
-.settings__tab .settings__tab-advanced.container {
+.settings__tab .settings__tab-advanced {
+    position: relative;
     transform: scaleY(0);
     height: 0;
     margin: 0;
-    transition: margin 0.3s  ease-out, transform 0.3s ease-out;
-    overflow: hidden;
+    transition:
+        margin-top 0.3s  ease-out,
+        transform 0.3s ease-out;
+    overflow-y: hidden;
 }
 
-.settings__tab--expanded .settings__tab-advanced.container {
+.settings__tab--expanded .settings__tab-advanced {
     transform: scaleY(1);
     height: 100%;
-    --margin: calc(2 * var(--default-spacing));
-    margin: var(--margin) var(--margin) var(--default-spacing) var(--margin);
+    margin-top: var(--material3-card-spacing) ;
+    overflow-y: clip;
 }
 
-.settings__new-tab .control,
-.settings__tab .control {
-    margin-right: var(--default-spacing);
+.settings__tab .expand-button {
+    transition: transform 0.3s ease-out;
+}
+
+.settings__tab--expanded .expand-button {
+    transform: rotate(180deg);
+}
+
+.settings__new-tab .material3.text-field,
+.settings__tab .material3.text-field {
+    flex: 1;
+}
+
+.settings__row {
+    display: flex;
+    align-items: center;
+    height: var(--settings-row-height);
+}
+
+.settings .material3.select {
+    min-width: 180px;
+}
+
+.settings__option {
+    --x-margin: calc(-1 * var(--material3-card-padding));
+    margin: 0 var(--x-margin);
+    padding: 0;
+    font-family: var(--md-sys-typescale-body-large-font);
+    font-size: var(--md-sys-typescale-body-large-size);
+    user-select: none;
+    cursor: pointer;
+}
+
+.settings__option-content {
+    display: flex;
+    align-items: center;
+    line-height: var(--md-sys-typescale-body-large-line-height);
+    height: var(--settings-row-height);
+    gap: 6px;
+    padding: 0 var(--material3-card-padding);
+}
+
+.settings__option-content:hover {
+    background-color: var(--md-sys-color-surface-variant);
+}
+
+.settings__option .settings__option-label {
     flex: 1;
 }
 
 .settings__dictionaries {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) ;
-    grid-gap: var(--default-spacing);
+    column-count: 1;
 }
-
-.settings__dictionaries .control input[type="checkbox"] {
-    margin-right: var(--default-spacing);
+@media screen and (min-width:  400px) {
+    .settings__dictionaries {
+        column-count: 2;
+    }
+}
+@media screen and (min-width:  600px) {
+    .settings__dictionaries {
+        column-count: 3;
+    }
+}
+@media screen and (min-width:  800px) {
+    .settings__dictionaries {
+        column-count: 4;
+    }
+}
+@media screen and (min-width:  1000px) {
+    .settings__dictionaries {
+        column-count: 5;
+    }
 }

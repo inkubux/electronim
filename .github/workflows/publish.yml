@@ -25,6 +25,7 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       SNAPCRAFT_LOGIN: ${{ secrets.SNAPCRAFT_LOGIN }}
+      SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_LOGIN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -49,8 +50,6 @@ jobs:
           sudo apt-get install snapd
           sudo chown root:root / # Snapcraft requires '/' to be root owned
           sudo snap install snapcraft --classic
-          echo $SNAPCRAFT_LOGIN | base64 --decode --ignore-garbage > snapcraft.login
-          snapcraft login --with snapcraft.login
           snapcraft push --release=stable ./dist/electronim-linux-amd64.snap
   macOS:
     name: macOS Artifact
@@ -74,7 +73,11 @@ jobs:
         run: ./utils/prepare-electron-builder.js
       - name: Build macOS
         run: npm run build:mac
-      - name: Upload dmg
-        run: ./utils/upload-artifact.js electronim-mac.dmg application/octet-stream
-      - name: Upload tar.gz
-        run: ./utils/upload-artifact.js electronim-mac.tar.gz application/tar+gzip
+      - name: Upload arm64-dmg
+        run: ./utils/upload-artifact.js electronim-mac-arm64.dmg application/octet-stream
+      - name: Upload arm64-tar.gz
+        run: ./utils/upload-artifact.js electronim-mac-arm64.tar.gz application/tar+gzip
+      - name: Upload x64-dmg
+        run: ./utils/upload-artifact.js electronim-mac-x64.dmg application/octet-stream
+      - name: Upload x64-tar.gz
+        run: ./utils/upload-artifact.js electronim-mac-x64.tar.gz application/tar+gzip

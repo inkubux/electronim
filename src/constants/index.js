@@ -25,31 +25,50 @@ const findRootDir = () => {
 };
 
 const APP_EVENTS = {
+  aboutOpenDialog: 'aboutOpenDialog',
   activateTab: 'activateTab',
   activateTabInContainer: 'activateTabInContainer',
   addTabs: 'addTabs',
+  appMenuOpen: 'appMenuOpen',
+  appMenuClose: 'appMenuClose',
+  canNotify: 'canNotify',
   closeDialog: 'closeDialog',
   desktopCapturerGetSources: 'desktopCapturerGetSources',
   dictionaryGetAvailable: 'dictionaryGetAvailable',
+  dictionaryGetAvailableNative: 'dictionaryGetAvailableNative',
   dictionaryGetEnabled: 'dictionaryGetEnabled',
   dictionaryGetMisspelled: 'dictionaryGetMisspelled',
+  electronimNewVersionAvailable: 'electronimNewVersionAvailable',
+  fullscreenToggle: 'fullscreenToggle',
+  helpOpenDialog: 'helpOpenDialog',
   notificationClick: 'notificationClick',
+  quit: 'quit',
   reload: 'reload',
+  // Restore and show the main window in case it was hidden
+  restore: 'restore',
   settingsLoad: 'settingsLoad',
   settingsOpenDialog: 'settingsOpenDialog',
   settingsSave: 'settingsSave',
   setTabFavicon: 'setTabFavicon',
   setTabTitle: 'setTabTitle',
-  canNotify: 'canNotify',
   tabsReady: 'tabsReady',
   tabReorder: 'tabReorder',
+  tabSwitchToPosition: 'tabSwitchToPosition',
+  tabTraverseNext: 'tabTraverseNext',
+  tabTraversePrevious: 'tabTraversePrevious',
+  trayInit: 'trayInit',
   zoomIn: 'zoomIn',
   zoomOut: 'zoomOut',
   zoomReset: 'zoomReset'
 };
 
+const CLOSE_BUTTON_BEHAVIORS = {
+  minimize: 'minimize',
+  quit: 'quit'
+};
+
 const ELECTRONIM_VERSION = JSON.parse(fs.readFileSync(path.resolve(findRootDir(), 'package.json'), 'utf8')).version;
 
 module.exports = {
-  APP_EVENTS, ELECTRONIM_VERSION
+  APP_EVENTS, CLOSE_BUTTON_BEHAVIORS, ELECTRONIM_VERSION
 };

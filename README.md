@@ -6,6 +6,7 @@
 [![npm](https://img.shields.io/npm/v/electronim)](https://www.npmjs.com/package/electronim)
 [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/manusa/electronim?sort=semver)](https://github.com/manusa/electronim/releases/latest)
 [![electronim](https://snapcraft.io//electronim/badge.svg)](https://snapcraft.io/electronim)
+[![Chocolatey Version](https://img.shields.io/chocolatey/v/electronim)](https://community.chocolatey.org/packages/electronim)
 
 
 Free/Libre open source Electron based multi instant messaging (IM) client.
@@ -33,18 +34,20 @@ electronim
 ## Features
 
 - ⚛ Multi-platform: ElectronIM is available for Linux 🐧, Mac 🍏 and Windows.
-- 🌍 Based on Chromium 105
+- 🌍 Based on Chromium 114
 - 🔔 Desktop notifications: ElectronIM will notify you using your native system notifications.
 - 🧐 Spellchecker: ElectronIM contains spellchecker dictionaries for many languages,
   if your language is not supported, just [file an issue](https://github.com/manusa/electronim/issues/new).
-- Supports any web based IM solution
-- Drag-and-drop tab reordering
+- 🕸 Supports any web based IM solution
+- 👋 Drag-and-drop tab reordering
 - 🔒 Configurable context for tabs (Isolated/sandboxed or shared). i.e. You can have multiple
   tabs/instances of the same service/web application if the context is sandboxed.
 - 🔕 Notifications can be disabled for individual Applications
 - 💤 Notifications can be disabled globally (Do not disturb)
 - ⌨ Keyboard [shortcuts](docs/Keyboard-shortcuts.md)
 - 🖥️ Screen sharing
+- 🌗 Light and Dark themes with system override
+- 🗕 System Tray 
 
 ## [Screenshot](docs/Screenshots.md)
 
@@ -67,9 +70,7 @@ spell checking for free.
 ## Acknowledgements
 
 - [Electron](https://electronjs.org/)
-- [Bulma](https://github.com/jgthms/bulma)
 - [Preact](https://github.com/preactjs/preact)
 - [Chrome tabs](https://github.com/adamschwartz/chrome-tabs#readme)
-- [Font Awesome Free](https://github.com/FortAwesome/Font-Awesome)
 - [Nodehun](https://github.com/Wulf/nodehun/)
 - [Woorm's dictionary repo](https://github.com/wooorm/dictionaries)

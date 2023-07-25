@@ -19,29 +19,39 @@ const matchUrls = regexList => (browserViewUrl, url) =>
   regexList.some(regex => browserViewUrl.href.match(regex) || url.href.match(regex));
 
 const isOAuth = matchUrls([
+  /^https:\/\/(.+\.)?github\.com\/login\/oauth.*/, // NOSONAR
+  /^https:\/\/sso\.godaddy\.com\/.*/, // NOSONAR
   /^https:\/\/.+\.google\.com\/o\/oauth2\/.*/, // NOSONAR
   /^https:\/\/.+\.google\.com\/accounts\/signin.*/, // NOSONAR
   /^https:\/\/.+\.google\.com\/signin\/oauth.*/, // NOSONAR
   /^https:\/\/accounts\.google\.com\/.*/, // NOSONAR
-  /^https:\/\/(.+\.)?github\.com\/login\/oauth.*/, // NOSONAR
-  /^https:\/\/auth\.redhat\.com\/auth\/.*/, // NOSONAR
   /^https:\/\/account\.live\.com\/.*/, // NOSONAR
   /^https:\/\/login\.live\.com\/.*/, // NOSONAR
   /^https:\/\/login\.microsoftonline\.com\/.*/, // NOSONAR
+  /^https:\/\/auth\.redhat\.com\/auth\/.*/, // NOSONAR
+  /^https:\/\/sso\.secureserver\.net\/.*/, // NOSONAR
   /^https:\/\/.+\.skype\.com\/login\/.*/, // NOSONAR
   /^https:\/\/.+\.skype\.com\/Auth\/.*/, // NOSONAR
-  /^https:\/\/idbroker\.webex\.com\/idb\/oauth2\/.*/, // NOSONAR
   /^https:\/\/.+\.twitter\.com\/login.*/, // NOSONAR
   /^https:\/\/.+\.twitter\.com\/logout.*/, // NOSONAR
-  /^https:\/\/.+\.zoom\.us\/profile.*/ // NOSONAR
+  /^https:\/\/idbroker\.webex\.com\/idb\/oauth2\/.*/, // NOSONAR
+  /^https:\/\/accounts\.zoho\.(eu|com)\/signin.*/, // NOSONAR
+  /^https:\/\/.+\.zoom\.us\/profile.*/, // NOSONAR
+  /^https:\/\/.+\.zoom\.us\/signin.*/ // NOSONAR
 ]);
+
+const isHandledInternally = (browserViewUrl, url) => [
+  /^https:\/\/app\.slack\.com\/.*/, // NOSONAR
+  /^https:\/\/files\.slack\.com\/.*/ // NOSONAR
+].some(regex => url.href.match(regex));
 
 const isSameOrigin = (browserViewUrl, url) => url.origin === browserViewUrl.origin;
 
 const shouldOpenInExternalBrowser = (browserView, url) => {
+  const browserViewUrl = new URL(browserView.webContents.getURL());
   let ret = true;
-  [isSameOrigin, isOAuth].forEach(f => {
-    if (ret && f(new URL(browserView.webContents.getURL()), url)) {
+  [isSameOrigin, isOAuth, isHandledInternally].forEach(f => {
+    if (ret && f(browserViewUrl, url)) {
       ret = false;
     }
   });
@@ -56,6 +66,14 @@ const handleRedirect = browserView => (e, urlString) => {
   }
 };
 
+const windowOpenHandler = browserView => ({url}) => {
+  if (!shouldOpenInExternalBrowser(browserView, new URL(url))) {
+    return {action: 'allow'};
+  }
+  shell.openExternal(url);
+  return {action: 'deny'};
+};
+
 module.exports = {
-  handleRedirect, shouldOpenInExternalBrowser
+  handleRedirect, shouldOpenInExternalBrowser, windowOpenHandler
 };

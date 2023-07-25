@@ -13,44 +13,88 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
+@import '../styles/main.css';
+
 html {
-    overflow: hidden !important;
+  overflow: hidden !important;
 }
 
 body {
-    margin: 0;
-    padding: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .tab-container {
-    position: relative;
-    width: auto;
-    flex-grow: 1;
-    display: flex;
-    background: #EEE;
-    align-items: center;
-    max-width: none;
+  position: relative;
+  width: auto;
+  flex-grow: 1;
+  display: flex;
+  background: #EEE;
+  align-items: center;
+  max-width: none;
 }
 
 .tab-container .chrome-tabs {
-    flex: 1;
-    background: #EEE;
-    padding: 10px 0;
+  flex: 1;
+  background: #EEE;
+  padding: 10px 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab-container,
+  .tab-container .chrome-tabs.chrome-tabs-dark-theme {
+    background: #202124;
+  }
+}
+
+.tab-container .chrome-tabs .chrome-tab .chrome-tab-title {
+  /*font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;*/
+  /* https://github.com/vaadin/web-components/issues/4183 */
+  /* Prevents https://bugs.chromium.org/p/chromium/issues/detail?id=1399431 */
+  -webkit-mask-image: none;
+}
+
+.tab-container .chrome-tabs .chrome-tab .chrome-tab-content::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to right, #EEEEEE00 50%, #EEEEEEFF 100%); /* #EEE */
+}
+.tab-container .chrome-tabs .chrome-tab .chrome-tab-content:hover::after {
+  background: linear-gradient(to right, #F4F5F600 50%, #F4F5F6FF 100%);
+}
+.tab-container .chrome-tabs .chrome-tab[active] .chrome-tab-content::after {
+  background: linear-gradient(to right, #FFFFFF00 50%, #FFFFFFFF 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .tab-container .chrome-tabs .chrome-tab .chrome-tab-content::after {
+    background: linear-gradient(to right, #20212400 50%, #202124FF 100%);
+  }
+  .tab-container .chrome-tabs .chrome-tab .chrome-tab-content:hover::after {
+    background: linear-gradient(to right, #292B2E00 50%, #292B2EFF 100%);
+  }
+  .tab-container .chrome-tabs .chrome-tab[active] .chrome-tab-content::after {
+    background: linear-gradient(to right, #32363900 50%, #323639FF 100%);
+  }
 }
 
 .tab-container .chrome-tabs .chrome-tab-close {
-    display: none;
+  display: none;
 }
 
-.tab-container .settings {
-    padding: 0 8px 0 0;
+.tab-container .chrome-tabs .chrome-tab-notifications-mute {
+  padding-left: 2px;
 }
 
-.tab-container .settings__button {
-    background: none;
-    border-color: transparent;
+.tab-container .menu {
+  padding: 0 8px 0 0;
 }
 
-.tab-container .settings__button:hover {
-    border-color: #dbdbdb;
+.tab-container .menu__button.material3.icon-button {
+  margin: 0 12px 0 8px;
+  z-index: 2;
 }

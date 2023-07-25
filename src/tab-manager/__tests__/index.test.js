@@ -15,45 +15,21 @@
  */
 describe('Tab Manager module test suite', () => {
   let mockBrowserView;
-  let mockMenu;
-  let mockMenuItem;
   let userAgent;
   let tabManager;
   let mockSettings;
   beforeEach(() => {
     jest.resetModules();
-    mockBrowserView = {
-      setAutoResize: jest.fn(),
-      webContents: {
-        executeJavaScript: jest.fn(async () => {}),
-        on: jest.fn(),
-        loadURL: jest.fn(),
-        userAgent: 'Mozilla/5.0 (X11; Fedora; Linux x86_64) AppleWebKit/1337.36 (KHTML, like Gecko) ElectronIM/13.337.0 Chrome/WillBeReplacedByLatestChromium Electron/0.0.99 Safari/537.36',
-        destroy: jest.fn()
-      }
-    };
-    mockMenu = {};
-    jest.mock('electron', () => ({
-      app: {},
-      BrowserView: jest.fn(() => mockBrowserView),
-      Menu: jest.fn(() => mockMenu),
-      MenuItem: jest.fn(() => mockMenuItem),
-      session: {
-        fromPartition: jest.fn(() => ({
-          userAgentInterceptor: true
-        })),
-        defaultSession: {userAgentInterceptor: true}
-      }
-    }));
+    jest.mock('electron', () => require('../../__tests__').mockElectronInstance());
+    mockBrowserView = require('electron').browserViewInstance;
     mockSettings = {
-      loadSettings: jest.fn(() => ({
-        tabs: [{id: '1337', disableNotifications: false}],
-        disableNotificationsGlobally: false
-      })),
-      updateSettings: jest.fn()
+      tabs: [{id: '1337', disableNotifications: false}],
+      disableNotificationsGlobally: false
     };
-    jest.mock('../../settings', () => mockSettings);
-    jest.mock('../../spell-check');
+    jest.mock('../../settings', () => ({
+      loadSettings: jest.fn(() => mockSettings),
+      updateSettings: jest.fn()
+    }));
     userAgent = require('../../user-agent');
     tabManager = require('../');
   });
@@ -81,6 +57,71 @@ describe('Tab Manager module test suite', () => {
       const result = tabManager.getTab();
       // Then
       expect(result).toBeNull();
+    });
+  });
+  describe('Tab traversal functions', () => {
+    beforeEach(() => {
+      tabManager.addTabs({send: jest.fn()})([
+        {id: 'A'},
+        {id: 'B'},
+        {id: 'C'}
+      ]);
+    });
+    describe('getNextTab with tabs [A, B, C]', () => {
+      test('with currentTab = A, should return B', () => {
+        // Given
+        tabManager.setActiveTab('A');
+        // When
+        const nextTab = tabManager.getNextTab();
+        // Then
+        expect(nextTab).toBe('B');
+      });
+      test('with currentTab = C, should return A', () => {
+        // Given
+        tabManager.setActiveTab('C');
+        // When
+        const nextTab = tabManager.getNextTab();
+        // Then
+        expect(nextTab).toBe('A');
+      });
+    });
+    describe('getPreviousTab', () => {
+      test('with currentTab = B, should return A', () => {
+        // Given
+        tabManager.setActiveTab('B');
+        // When
+        const nextTab = tabManager.getPreviousTab();
+        // Then
+        expect(nextTab).toBe('A');
+      });
+      test('with currentTab = A, should return C', () => {
+        // Given
+        tabManager.setActiveTab('A');
+        // When
+        const nextTab = tabManager.getPreviousTab();
+        // Then
+        expect(nextTab).toBe('C');
+      });
+    });
+    describe('getTabAt', () => {
+      test('with position in range, should return tab in range', () => {
+        // When
+        const nextTab = tabManager.getTabAt(2);
+        // Then
+        expect(nextTab).toBe('B');
+      });
+      test('with position out of range (upper), should return last', () => {
+        // When
+        const nextTab = tabManager.getTabAt(9);
+        // Then
+        expect(nextTab).toBe('C');
+      });
+      test('with position out of range (lower), should return last', () => {
+        // When
+        const nextTab = tabManager.getTabAt(-1);
+        // Then
+        expect(nextTab).toBe('A');
+      });
     });
   });
   describe('addTabs', () => {
@@ -117,7 +158,8 @@ describe('Tab Manager module test suite', () => {
       tabManager.addTabs(mockIpcSender)([{id: 1337, url: 'https://localhost'}]);
       // Then
       expect(mockBrowserView.webContents.loadURL).toHaveBeenCalledWith('https://localhost');
-      expect(mockBrowserView.setAutoResize).toHaveBeenCalledWith({width: true, height: true});
+      expect(mockBrowserView.setAutoResize)
+        .toHaveBeenCalledWith({width: false, horizontal: false, height: false, vertical: false});
       expect(mockIpcSender.send).toHaveBeenCalledTimes(1);
       expect(mockIpcSender.send).toHaveBeenCalledWith('addTabs', [{id: 1337, url: 'https://localhost'}]);
     });
@@ -149,24 +191,21 @@ describe('Tab Manager module test suite', () => {
       });
     });
     describe('Event listeners', () => {
-      let events;
       let mockIpcSender;
       beforeEach(() => {
-        events = {};
-        mockBrowserView.webContents.on = jest.fn((id, func) => (events[id] = func));
         mockIpcSender = {send: jest.fn()};
         tabManager.addTabs(mockIpcSender)([{id: '1337', url: 'https://localhost'}]);
       });
       test('handlePageTitleUpdated, should send setTabTitle event', () => {
         // When
-        events['page-title-updated'](new Event(''), 'Dr.');
+        mockBrowserView.listeners['page-title-updated'](new Event(''), 'Dr.');
         // Then
         expect(mockIpcSender.send).toHaveBeenCalledWith('setTabTitle', {id: '1337', title: 'Dr.'});
       });
       describe('handlePageFaviconUpdated', () => {
         test('Favicons provided, should send setTabFavicon with the last of the provided favicons', () => {
           // When
-          events['page-favicon-updated'](new Event(''), [
+          mockBrowserView.listeners['page-favicon-updated'](new Event(''), [
             'http://url-to-favicon/aitana.png',
             'http://url-to-favicon/alex.png'
           ]);
@@ -183,51 +222,19 @@ describe('Tab Manager module test suite', () => {
             return [];
           });
           // When
-          await events['page-favicon-updated'](new Event(''));
+          await mockBrowserView.listeners['page-favicon-updated'](new Event(''));
           // Then
           expect(mockIpcSender.send)
             .toHaveBeenCalledWith('setTabFavicon', {id: '1337', favicon: 'http://url-to-favicon/julia.png'});
         });
       });
-      describe('handleContextMenu', () => {
-        let electron;
-        let spellChecker;
-        beforeEach(() => {
-          electron = require('electron');
-          spellChecker = require('../../spell-check');
-          mockMenu.append = jest.fn();
-          mockMenu.popup = jest.fn();
-        });
-        test('No spelling suggestions, should open a Menu with DevTools entry', async () => {
-          // Given
-          spellChecker.contextMenuHandler.mockImplementationOnce(() => []);
-          // When
-          await events['context-menu'](new Event(''), {x: 13, y: 37});
-          // Then
-          expect(electron.Menu).toHaveBeenCalledTimes(1);
-          expect(electron.MenuItem).toHaveBeenCalledTimes(1);
-          expect(electron.MenuItem).toHaveBeenCalledWith(expect.objectContaining({label: 'DevTools'}));
-          expect(mockMenu.append).toHaveBeenCalledTimes(1);
-          expect(mockMenu.popup).toHaveBeenCalledTimes(1);
-          expect(mockMenu.popup).toHaveBeenCalledWith({x: 13, y: 37});
-        });
-        test('Spelling suggestions, should open a Menu with all suggestions, a sperator and DevTools entry', async () => {
-          // Given
-          spellChecker.contextMenuHandler.mockImplementationOnce(() => [
-            new electron.MenuItem({label: 'suggestion 1'}),
-            new electron.MenuItem({label: 'suggestion 2'})
-          ]);
-          // When
-          await events['context-menu'](new Event(''), {x: 13, y: 37});
-          // Then
-          expect(electron.Menu).toHaveBeenCalledTimes(1);
-          expect(electron.MenuItem).toHaveBeenCalledTimes(4);
-          expect(electron.MenuItem).toHaveBeenCalledWith({type: 'separator'});
-          expect(electron.MenuItem).toHaveBeenCalledWith(expect.objectContaining({label: 'DevTools'}));
-          expect(mockMenu.append).toHaveBeenCalledTimes(4);
-          expect(mockMenu.popup).toHaveBeenCalledTimes(1);
-          expect(mockMenu.popup).toHaveBeenCalledWith({x: 13, y: 37});
-        });
+      test('windowOpen (was new-window)', () => {
+        // Given
+        mockBrowserView.webContents.getURL.mockReturnValue('file://tab/index.html');
+        // When
+        mockBrowserView.webContents.setWindowOpenHandler.mock.calls[0][0]({url: 'https://example.com'});
+        // Then
+        expect(require('electron').shell.openExternal).toHaveBeenCalledWith('https://example.com');
       });
     });
   });
@@ -268,10 +275,10 @@ describe('Tab Manager module test suite', () => {
     });
     test('Global notifications disabled, Notifications for this tab enabled, should return false', () => {
       // Given
-      mockSettings.loadSettings = jest.fn(() => ({
+      mockSettings = {
         tabs: [{id: '1337', disableNotifications: false}],
         disableNotificationsGlobally: true
-      }));
+      };
       // When
       const result = tabManager.canNotify('1337');
       // Then
@@ -279,10 +286,10 @@ describe('Tab Manager module test suite', () => {
     });
     test('Global notifications enabled, Notifications for this tab disabled, should return false', () => {
       // Given
-      mockSettings.loadSettings = jest.fn(() => ({
+      mockSettings = {
         tabs: [{id: '1337', disableNotifications: true}],
         disableNotificationsGlobally: false
-      }));
+      };
       // When
       const result = tabManager.canNotify('1337');
       // Then
@@ -290,9 +297,9 @@ describe('Tab Manager module test suite', () => {
     });
     test('Notifications undefined in settings, should return true (Opt-out setting)', () => {
       // Given
-      mockSettings.loadSettings = jest.fn(() => ({
+      mockSettings.loadSettings = {
         tabs: [{id: '1337'}]
-      }));
+      };
       // When
       const result = tabManager.canNotify('1337');
       // Then

@@ -13,12 +13,21 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-const {BrowserWindow, Notification, app, desktopCapturer, ipcMain: ipc} = require('electron');
-const {APP_EVENTS} = require('../constants');
-const {TABS_CONTAINER_HEIGHT, initTabContainer} = require('../chrome-tabs');
-const {loadSettings, updateSettings, openSettingsDialog} = require('../settings');
-const {getAvailableDictionaries, loadDictionaries, getEnabledDictionaries} = require('../spell-check');
+const path = require('path');
+const {
+  BrowserWindow, Notification, app, desktopCapturer, ipcMain: eventBus, nativeTheme
+} = require('electron');
+const {APP_EVENTS, CLOSE_BUTTON_BEHAVIORS} = require('../constants');
+const {openAboutDialog} = require('../about');
+const {newAppMenu, isNotAppMenu} = require('../app-menu');
+const {TABS_CONTAINER_HEIGHT, newTabContainer, isNotTabContainer} = require('../chrome-tabs');
+const {openHelpDialog} = require('../help');
+const {getPlatform, loadSettings, updateSettings, openSettingsDialog} = require('../settings');
+const {
+  getAvailableDictionaries, getAvailableNativeDictionaries, loadDictionaries, getEnabledDictionaries
+} = require('../spell-check');
 const tabManager = require('../tab-manager');
+const {initTray} = require('../tray');
 const {initBrowserVersions, userAgentForView} = require('../user-agent');
 
 const webPreferences = {
@@ -29,8 +38,7 @@ const webPreferences = {
 
 let mainWindow;
 let tabContainer;
-
-const isNotTabContainer = bv => bv.isTabContainer !== true;
+let appMenu;
 
 const fixUserDataLocation = () => {
   const userDataPath = app.getPath('userData');
@@ -60,7 +68,43 @@ const activateTab = tabId => {
   }
 };
 
+const handleMainWindowResize = () => {
+  const [windowWidth, windowHeight] = mainWindow.getSize();
+  updateSettings({width: windowWidth, height: windowHeight});
+
+  setTimeout(() => {
+    const {width: contentWidth, height: contentHeight} = mainWindow.getContentBounds();
+    if (appMenu && appMenu.setBounds) {
+      appMenu.setBounds({x: 0, y: 0, width: contentWidth, height: contentHeight});
+    }
+    let totalHeight = 0;
+    const isLast = (idx, array) => idx === array.length - 1;
+    mainWindow.getBrowserViews().filter(isNotAppMenu).forEach((bv, idx, array) => {
+      const {x: currentX, y: currentY, height: currentHeight} = bv.getBounds();
+      let newHeight = currentHeight;
+      if (isLast(idx, array)) {
+        newHeight = contentHeight - totalHeight;
+      }
+      bv.setBounds({x: currentX, y: currentY, width: contentWidth, height: newHeight});
+      totalHeight += currentHeight;
+    });
+  });
+};
+
 const handleTabReload = event => event.sender.reloadIgnoringCache();
+
+const handleTabTraverse = getTabIdFunction => () => {
+  if (mainWindow.getBrowserViews().length === 1) {
+    return;
+  }
+  const tabId = getTabIdFunction();
+  tabContainer.webContents.send(APP_EVENTS.activateTabInContainer, {tabId});
+  activateTab(tabId);
+};
+
+const handleTabSwitchToPosition = tabPosition => {
+  handleTabTraverse(() => tabManager.getTabAt(tabPosition))();
+};
 
 const handleZoomIn = event => event.sender.setZoomFactor(event.sender.getZoomFactor() + 0.1);
 
@@ -88,7 +132,7 @@ const handleTabReorder = (_event, {tabIds: visibleTabIds}) => {
 };
 
 const initTabListener = () => {
-  ipc.on(APP_EVENTS.tabsReady, event => {
+  eventBus.on(APP_EVENTS.tabsReady, event => {
     const currentSettings = loadSettings();
     const tabs = currentSettings.tabs
       .filter(tab => !tab.disabled)
@@ -97,92 +141,131 @@ const initTabListener = () => {
       const ipcSender = event.sender;
       tabManager.addTabs(ipcSender)(tabs);
     } else {
-      openSettingsDialog(mainWindow);
+      eventBus.emit(APP_EVENTS.settingsOpenDialog);
     }
   });
-  ipc.on(APP_EVENTS.activateTab, (_event, data) => activateTab(data.id));
-  ipc.on(APP_EVENTS.canNotify, (event, tabId) => {
+  eventBus.on(APP_EVENTS.activateTab, (_event, data) => activateTab(data.id));
+  eventBus.on(APP_EVENTS.canNotify, (event, tabId) => {
     event.returnValue = tabManager.canNotify(tabId);
   });
-  ipc.on(APP_EVENTS.notificationClick, (_event, {tabId}) => {
+  eventBus.on(APP_EVENTS.notificationClick, (_event, {tabId}) => {
     tabContainer.webContents.send(APP_EVENTS.activateTabInContainer, {tabId});
-    mainWindow.restore();
-    mainWindow.show();
+    eventBus.emit(APP_EVENTS.restore);
     activateTab(tabId);
   });
-  ipc.on(APP_EVENTS.reload, handleTabReload);
-  ipc.on(APP_EVENTS.settingsOpenDialog, () => openSettingsDialog(mainWindow));
-  ipc.on(APP_EVENTS.tabReorder, handleTabReorder);
-  ipc.on(APP_EVENTS.zoomIn, handleZoomIn);
-  ipc.on(APP_EVENTS.zoomOut, handleZoomOut);
-  ipc.on(APP_EVENTS.zoomReset, handleZoomReset);
+  eventBus.on(APP_EVENTS.reload, handleTabReload);
+  eventBus.on(APP_EVENTS.tabReorder, handleTabReorder);
+  eventBus.on(APP_EVENTS.zoomIn, handleZoomIn);
+  eventBus.on(APP_EVENTS.zoomOut, handleZoomOut);
+  eventBus.on(APP_EVENTS.zoomReset, handleZoomReset);
 };
 
 const initDesktopCapturerHandler = () => {
-  ipc.handle(APP_EVENTS.desktopCapturerGetSources, (_event, opts) => desktopCapturer.getSources(opts));
+  eventBus.handle(APP_EVENTS.desktopCapturerGetSources, (_event, opts) => desktopCapturer.getSources(opts));
+};
+
+const appMenuOpen = () => {
+  const {width, height} = mainWindow.getContentBounds();
+  mainWindow.addBrowserView(appMenu);
+  appMenu.setBounds({x: 0, y: 0, width, height});
+};
+
+const appMenuClose = () => {
+  if (!mainWindow.getBrowserViews().find(bv => bv.isAppMenu)) {
+    return;
+  }
+  mainWindow.removeBrowserView(appMenu);
+  activateTab(tabManager.getActiveTab());
+};
+
+const fullscreenToggle = () => {
+  mainWindow.setFullScreen(!mainWindow.isFullScreen());
 };
 
 const closeDialog = () => {
+  if (mainWindow.getBrowserViews().length > 1) {
+    return;
+  }
   const dialogView = mainWindow.getBrowserView();
   activateTab(tabManager.getActiveTab());
   dialogView.webContents.destroy();
 };
 
+const handleWindowClose = event => {
+  event.preventDefault();
+  const {closeButtonBehavior} = loadSettings();
+  if (closeButtonBehavior === CLOSE_BUTTON_BEHAVIORS.minimize) {
+    mainWindow.minimize();
+    // Inconsistent tray icon behaviors across platforms make it impossible to provide a consistent experience
+    // to hide the app from the task bar and just show it on the tray (mainWindow.hide()).
+    // Therefore, we minimize the window instead (always visible in the taskbar).
+    return false;
+  }
+  app.exit();
+  return true;
+};
+
 const saveSettings = (_event, settings) => {
   updateSettings(settings);
   loadDictionaries();
+  nativeTheme.themeSource = settings.theme;
   const currentBrowserView = mainWindow.getBrowserView();
   mainWindow.removeBrowserView(currentBrowserView);
   tabManager.removeAll();
   const viewsToDestroy = [currentBrowserView, tabContainer];
-  tabContainer = initTabContainer(mainWindow);
   viewsToDestroy.forEach(view => view.webContents.destroy());
+  tabContainer = newTabContainer();
+  eventBus.emit(APP_EVENTS.trayInit);
 };
 
-const initDialogListeners = () => {
-  ipc.on(APP_EVENTS.closeDialog, closeDialog);
-  ipc.handle(APP_EVENTS.dictionaryGetAvailable, getAvailableDictionaries);
-  ipc.handle(APP_EVENTS.dictionaryGetEnabled, getEnabledDictionaries);
-  ipc.handle(APP_EVENTS.settingsLoad, loadSettings);
-  ipc.on(APP_EVENTS.settingsSave, saveSettings);
+const initGlobalListeners = () => {
+  eventBus.on(APP_EVENTS.aboutOpenDialog, openAboutDialog);
+  eventBus.on(APP_EVENTS.appMenuOpen, appMenuOpen);
+  eventBus.on(APP_EVENTS.appMenuClose, appMenuClose);
+  eventBus.on(APP_EVENTS.closeDialog, closeDialog);
+  eventBus.handle(APP_EVENTS.dictionaryGetAvailable, getAvailableDictionaries);
+  eventBus.handle(APP_EVENTS.dictionaryGetAvailableNative, getAvailableNativeDictionaries);
+  eventBus.handle(APP_EVENTS.dictionaryGetEnabled, getEnabledDictionaries);
+  eventBus.on(APP_EVENTS.fullscreenToggle, fullscreenToggle);
+  eventBus.on(APP_EVENTS.helpOpenDialog, openHelpDialog(mainWindow));
+  eventBus.on(APP_EVENTS.quit, app.exit);
+  eventBus.on(APP_EVENTS.restore, () => {
+    mainWindow.restore();
+    mainWindow.show();
+  });
+  eventBus.handle(APP_EVENTS.settingsLoad, loadSettings);
+  eventBus.on(APP_EVENTS.settingsOpenDialog, openSettingsDialog(mainWindow));
+  eventBus.on(APP_EVENTS.settingsSave, saveSettings);
+  eventBus.on(APP_EVENTS.tabSwitchToPosition, handleTabSwitchToPosition);
+  eventBus.on(APP_EVENTS.tabTraverseNext, handleTabTraverse(tabManager.getNextTab));
+  eventBus.on(APP_EVENTS.tabTraversePrevious, handleTabTraverse(tabManager.getPreviousTab));
+  eventBus.on(APP_EVENTS.trayInit, initTray);
 };
 
 const browserVersionsReady = () => {
   app.userAgentFallback = userAgentForView(mainWindow);
-  tabContainer = initTabContainer(mainWindow);
-};
-
-const handleMainWindowResize = () => {
-  const [windowWidth, windowHeight] = mainWindow.getSize();
-  updateSettings({width: windowWidth, height: windowHeight});
-  const {width: contentWidth, height: contentHeight} = mainWindow.getContentBounds();
-  let totalHeight = 0;
-  const isLast = (idx, array) => idx === array.length - 1;
-  mainWindow.getBrowserViews().forEach((bv, idx, array) => {
-    const {x: currentX, y: currentY} = bv.getBounds();
-    let {height: currentHeight} = bv.getBounds();
-    if (isLast(idx, array)) {
-      currentHeight = contentHeight - totalHeight;
-    }
-    bv.setBounds({x: currentX, y: currentY, width: contentWidth, height: currentHeight});
-    totalHeight += currentHeight;
-  });
+  tabContainer = newTabContainer();
+  appMenu = newAppMenu();
+  eventBus.emit(APP_EVENTS.trayInit);
 };
 
 const init = () => {
   fixUserDataLocation();
   loadDictionaries();
-  const {width = 800, height = 600} = loadSettings();
+  const {width = 800, height = 600, theme} = loadSettings();
+  nativeTheme.themeSource = theme;
   mainWindow = new BrowserWindow({
-    width, height, resizable: true, maximizable: true, webPreferences
+    width, height, resizable: true, maximizable: true,
+    icon: path.resolve(__dirname, '..', 'assets', getPlatform() === 'linux' ? 'icon.png' : 'icon.ico'),
+    webPreferences
   });
   mainWindow.removeMenu();
-  mainWindow.on('resize', handleMainWindowResize);
-  mainWindow.on('maximize', handleMainWindowResize);
-  mainWindow.on('closed', () => app.quit());
+  ['resize', 'maximize']
+    .forEach(event => mainWindow.on(event, handleMainWindowResize));
+  mainWindow.on('close', handleWindowClose);
   initTabListener();
   initDesktopCapturerHandler();
-  initDialogListeners();
+  initGlobalListeners();
   initBrowserVersions()
     .then(browserVersionsReady)
     .catch(() => {
@@ -195,4 +278,6 @@ const init = () => {
   return mainWindow;
 };
 
-module.exports = {APP_EVENTS, init};
+module.exports = {
+  init, ...require('./quit')
+};

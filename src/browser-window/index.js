@@ -13,11 +13,14 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-const showDialog = (window, browserView) => {
-  window.setBrowserView(browserView);
-  const {width, height} = window.getContentBounds();
+const {registerAppShortcuts} = require('./keyboard-shortcuts');
+
+const showDialog = (browserWindow, browserView) => {
+  browserWindow.setBrowserView(browserView);
+  const {width, height} = browserWindow.getContentBounds();
   browserView.setBounds({x: 0, y: 0, width, height});
-  browserView.setAutoResize({width: true, horizontal: true, height: true, vertical: true});
+  browserView.setAutoResize({width: false, horizontal: false, height: false, vertical: false});
+  browserView.webContents.focus();
 };
 
-module.exports = {showDialog};
+module.exports = {registerAppShortcuts, showDialog};

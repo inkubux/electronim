@@ -17,11 +17,7 @@ describe('Browser Keyboard Shortcuts test suite', () => {
   let mockIpcRenderer;
   let browserKeyboardShortcuts;
   beforeEach(() => {
-    global.APP_EVENTS = {
-      reload: 'reload',
-      zoomIn: 'zoomIn',
-      zoomOut: 'zoomOut'
-    };
+    global.APP_EVENTS = require('../../constants').APP_EVENTS;
     mockIpcRenderer = {
       send: jest.fn()
     };
@@ -60,15 +56,6 @@ describe('Browser Keyboard Shortcuts test suite', () => {
       window.dispatchEvent(new KeyboardEvent('keyup', {key: 'NONEXISTENT', ctrlKey: true}));
       // Then
       expect(mockIpcRenderer.send).not.toHaveBeenCalled();
-    });
-    test('ctrl+r, should send reload app event', () => {
-      // Given
-      browserKeyboardShortcuts.initKeyboardShortcuts();
-      // When
-      window.dispatchEvent(new KeyboardEvent('keyup', {key: 'r', ctrlKey: true}));
-      // Then
-      expect(mockIpcRenderer.send).toHaveBeenCalledTimes(1);
-      expect(mockIpcRenderer.send).toHaveBeenCalledWith('reload');
     });
   });
   describe('Command modified events', () => {

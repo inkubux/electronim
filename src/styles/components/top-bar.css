@@ -1,0 +1,55 @@
+/*
+   Copyright 2022 Marc Nuri San Felix
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+ */
+:root {
+  --material3-top-app-bar-height: 64px;
+}
+
+.electronim body.has-top-app-bar {
+  margin-top: var(--material3-top-app-bar-height);
+}
+
+.electronim .material3.top-app-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.electronim .material3.top-app-bar.small {
+  padding: 0 16px;
+  height: var(--material3-top-app-bar-height);
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.electronim .material3.top-app-bar .leading-navigation-icon {
+  color: var(--md-sys-color-on-surface);
+}
+
+.electronim .material3.top-app-bar.small .leading-navigation-icon {
+  width: 24px;
+}
+
+.electronim .material3.top-app-bar .top-app-bar__headline {
+  flex: 1;
+}
+
+.electronim .material3.top-app-bar .trailing-icon {
+  display: flex;
+  align-items: center;
+}

@@ -16,40 +16,26 @@
 /* eslint-disable no-undef */
 const {ipcRenderer} = require('electron');
 
-const codeActionMap = {
-  F5: APP_EVENTS.reload
-};
+const eventKey = ({key, shiftKey = false, ctrlKey = false, altKey = false, metaKey = false}) =>
+  `${key}-${shiftKey}-${ctrlKey}-${altKey}-${metaKey}`;
 
-const controlCodeActionMap = {
-  r: APP_EVENTS.reload,
-  R: APP_EVENTS.reload,
-  '+': APP_EVENTS.zoomIn,
-  '-': APP_EVENTS.zoomOut,
-  0: APP_EVENTS.zoomReset
-};
+const EVENTS = new Map();
 
-const commandCodeActionMap = {
-  r: APP_EVENTS.reload,
-  R: APP_EVENTS.reload
-};
-
-const triggerForActionMap = actionMap => key => {
-  if (actionMap[key]) {
-    ipcRenderer.send(actionMap[key]);
-  }
-};
+EVENTS.set(eventKey({key: 'F5'}), () => ipcRenderer.send(APP_EVENTS.reload));
+EVENTS.set(eventKey({key: 'R', ctrlKey: true}), () => ipcRenderer.send(APP_EVENTS.reload));
+EVENTS.set(eventKey({key: 'r', ctrlKey: true}), () => ipcRenderer.send(APP_EVENTS.reload));
+EVENTS.set(eventKey({key: 'R', metaKey: true}), () => ipcRenderer.send(APP_EVENTS.reload));
+EVENTS.set(eventKey({key: 'r', metaKey: true}), () => ipcRenderer.send(APP_EVENTS.reload));
+EVENTS.set(eventKey({key: '+', ctrlKey: true}), () => ipcRenderer.send(APP_EVENTS.zoomIn));
+EVENTS.set(eventKey({key: '-', ctrlKey: true}), () => ipcRenderer.send(APP_EVENTS.zoomOut));
+EVENTS.set(eventKey({key: '0', ctrlKey: true}), () => ipcRenderer.send(APP_EVENTS.zoomReset));
 
 const initKeyboardShortcuts = () => {
-  const triggerCodeActionMap = triggerForActionMap(codeActionMap);
-  const triggerControlCodeActionMap = triggerForActionMap(controlCodeActionMap);
-  const triggerCommandCodeActionMap = triggerForActionMap(commandCodeActionMap);
   window.addEventListener('keyup', event => {
-    if (event.ctrlKey === false && event.metaKey === false) {
-      triggerCodeActionMap(event.key);
-    } else if (event.ctrlKey === true && event.metaKey === false) {
-      triggerControlCodeActionMap(event.key);
-    } else if (event.ctrlKey === false && event.metaKey === true) {
-      triggerCommandCodeActionMap(event.key);
+    const func = EVENTS.get(eventKey(event));
+    if (func) {
+      event.preventDefault();
+      func();
     }
   });
   window.addEventListener('load', () => {

@@ -4,6 +4,7 @@
   "description": "Free/Libre open source Electron based multi instant messaging (IM) client.",
   "author": {
     "name": "Marc Nuri",
+    "email": "electronim@marcnuri.com",
     "url": "https://www.marcnuri.com"
   },
   "main": "src/index.js",
@@ -11,6 +12,7 @@
     "electronim": "bin.js"
   },
   "files": [
+    "assets",
     "build-config",
     "bundles",
     "docs",
@@ -18,9 +20,9 @@
     "utils"
   ],
   "scripts": {
-    "pretest": "eslint --ignore-path .gitignore . && node webpack.js",
+    "pretest": "eslint --ext .mjs,.js --ignore-path .gitignore . && node webpack.js",
     "test": "jest --coverage",
-    "prestart": "node webpack.js",
+    "prestart": "node webpack.js --no-lib",
     "start": "electron .",
     "prepack": "node webpack.js",
     "prepublish": "node webpack.js",
@@ -53,7 +55,7 @@
   "licenses": [
     {
       "type": "Apache-2.0",
-      "url": "http://www.apache.org/licenses/LICENSE-2.0"
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
     }
   ],
   "bugs": {
@@ -65,8 +67,12 @@
     "productName": "ElectronIM",
     "copyright": "Copyright 2019 Marc Nuri",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "assets"
     },
+    "extraResources": [
+      "assets/*"
+    ],
     "snap": {
       "summary": "Free/Libre open source Electron based multi instant messaging (IM) client.",
       "plugs": [
@@ -96,12 +102,14 @@
     "linux": {
       "artifactName": "electronim-linux-${arch}.${ext}",
       "executableName": "electronim",
-      "category": "Network",
+      "category": "Network;InstantMessaging;",
+      "synopsis": "Free/Libre open source Electron based multi instant messaging (IM) client.",
       "desktop": {
         "Terminal": "false",
         "Type": "Application",
         "Categories": "GTK;GNOME;Network;Email;Chat;InstantMessaging;"
       },
+      "icon": "icon_1024x1024.png",
       "target": [
         "AppImage",
         "snap",
@@ -109,11 +117,24 @@
       ]
     },
     "mac": {
-      "artifactName": "electronim-mac.${ext}",
+      "artifactName": "electronim-mac-${arch}.${ext}",
       "category": "public.app-category.utilities",
+      "icon": "icon_1024x1024.png",
       "target": [
-        "dmg",
-        "tar.gz"
+        {
+          "target":"dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target":"tar.gz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "entitlements": "build-config/entitlements.mac.plist",
       "entitlementsInherit": "build-config/entitlements.mac.plist"
@@ -138,6 +159,7 @@
     },
     "win": {
       "artifactName": "electronim-win-${arch}.${ext}",
+      "icon": "icon.ico",
       "target": [
         "zip",
         "portable"
@@ -146,7 +168,8 @@
   },
   "jest": {
     "setupFilesAfterEnv": [
-      "jest-extended/all"
+      "jest-extended/all",
+      "<rootDir>/src/__tests__/setup-jest.js"
     ],
     "testEnvironment": "jsdom",
     "testEnvironmentOptions": {
@@ -156,30 +179,30 @@
       ]
     },
     "testMatch": [
-      "**/__tests__/**/*.?(m)js?(x)",
-      "**/?(*.**/?(*.)(spec|test).?(m)js?(x)"
+      "**/(*.)(spec|test).?(m)js?(x)"
     ],
     "verbose": true
   },
   "devDependencies": {
-    "@fortawesome/fontawesome-free": "5.15.4",
-    "@testing-library/dom": "8.17.1",
-    "bulma": "0.9.4",
+    "@testing-library/dom": "9.3.0",
+    "@testing-library/user-event": "14.4.3",
     "chrome-tabs": "5.4.0",
-    "css-loader": "6.7.1",
-    "electron-builder": "23.3.3",
-    "eslint": "8.23.0",
-    "eslint-plugin-jest": "27.0.1",
-    "jest": "29.0.1",
-    "jest-environment-jsdom": "29.0.1",
-    "jest-environment-node": "29.0.1",
-    "jest-extended": "3.0.2",
-    "style-loader": "3.3.1",
-    "val-loader": "5.0.0",
-    "webpack": "5.74.0"
+    "css-loader": "6.8.1",
+    "electron-builder": "23.6.0",
+    "eslint": "8.42.0",
+    "eslint-plugin-jest": "27.2.1",
+    "jest": "29.5.0",
+    "jest-environment-jsdom": "29.5.0",
+    "jest-environment-node": "29.5.0",
+    "jest-extended": "3.2.4",
+    "sass": "1.62.1",
+    "sass-loader": "13.3.1",
+    "style-loader": "3.3.3",
+    "val-loader": "5.0.1",
+    "webpack": "5.76.3"
   },
   "dependencies": {
-    "axios": "0.27.2",
+    "axios": "1.4.0",
     "dictionary-ca": "2.6.0",
     "dictionary-ca-valencia": "2.6.0",
     "dictionary-de": "2.0.4",
@@ -199,10 +222,10 @@
     "dictionary-sv": "^3.0.1",
     "dictionary-tr": "^1.3.3",
     "dictionary-uk": "^2.1.1",
-    "electron": "20.1.4",
+    "electron": "25.0.1",
     "htm": "3.1.1",
     "markdown-it": "13.0.1",
     "nodehun": "3.0.2",
-    "preact": "10.10.6"
+    "preact": "10.15.1"
   }
 }

@@ -14,18 +14,10 @@
    limitations under the License.
  */
 /* eslint-disable no-undef */
-const {ipcRenderer} = require('electron');
+const {contextBridge, ipcRenderer} = require('electron');
 const {docs} = require('!val-loader!./docs.browser.val-loader');
-const {topBar} = require('../components/top-bar');
 
-require('./help.browser.css');
-
-window.ipcRenderer = ipcRenderer;
-window.APP_EVENTS = APP_EVENTS;
-window.ELECTRONIM_VERSION = ELECTRONIM_VERSION;
-window.preact = require('preact');
-window.preactHooks = require('preact/hooks');
-window.html = require('htm').bind(window.preact.h);
-window.TopBar = topBar(window.html);
-
-window.docs = docs;
+contextBridge.exposeInMainWorld('electron', {
+  close: () => ipcRenderer.send(APP_EVENTS.closeDialog),
+  docs
+});

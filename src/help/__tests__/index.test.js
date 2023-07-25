@@ -14,48 +14,64 @@
    limitations under the License.
  */
 describe('Help module test suite', () => {
-  let mockBrowserView;
+  let electron;
   let help;
   beforeEach(() => {
     jest.resetModules();
-    mockBrowserView = {
-      setAutoResize: jest.fn(),
-      setBounds: jest.fn(),
-      webContents: {
-        on: jest.fn(),
-        loadURL: jest.fn()
-      }
-    };
-    jest.mock('electron', () => ({
-      BrowserView: jest.fn(() => mockBrowserView)
-    }));
+    jest.mock('electron', () => require('../../__tests__').mockElectronInstance());
+    electron = require('electron');
     help = require('../');
   });
   describe('openHelpDialog', () => {
-    let mainWindow;
+    let openHelp;
     beforeEach(() => {
-      mainWindow = {
-        getContentBounds: jest.fn(() => ({width: 13, height: 37})),
-        setBrowserView: jest.fn()
-      };
+      openHelp = help.openHelpDialog(electron.browserWindowInstance);
     });
-    test('webPreferences is sandboxed and has no node integration', () => {
-      // When
-      help.openHelpDialog(mainWindow)();
-      // Then
-      const BrowserView = require('electron').BrowserView;
-      expect(BrowserView).toHaveBeenCalledTimes(1);
-      expect(BrowserView).toHaveBeenCalledWith({
-        webPreferences: expect.objectContaining({sandbox: true, nodeIntegration: false})
+    describe('webPreferences', () => {
+      test('is sandboxed', () => {
+        // When
+        openHelp();
+        // Then
+        const BrowserView = electron.BrowserView;
+        expect(BrowserView).toHaveBeenCalledTimes(1);
+        expect(BrowserView).toHaveBeenCalledWith({
+          webPreferences: expect.objectContaining({sandbox: true, nodeIntegration: false})
+        });
       });
+      test('has no node integration', () => {
+        // When
+        openHelp();
+        // Then
+        expect(electron.BrowserView).toHaveBeenCalledWith({
+          webPreferences: expect.objectContaining({nodeIntegration: false})
+        });
+      });
+      test('has context isolation', () => {
+        // When
+        openHelp();
+        // Then
+        expect(electron.BrowserView).toHaveBeenCalledWith({
+          webPreferences: expect.objectContaining({contextIsolation: true})
+        });
+      });
+    });
+    test('hasWindowOpenHandler', () => {
+      // Given
+      electron.browserViewInstance.webContents.getURL.mockReturnValue('file://help/index.html');
+      openHelp();
+      // When
+      electron.browserViewInstance.webContents.setWindowOpenHandler.mock.calls[0][0]({url: 'https://example.com'});
+      // Then
+      expect(electron.shell.openExternal).toHaveBeenCalledWith('https://example.com');
     });
     test('should open dialog and add event listeners', () => {
       // When
-      help.openHelpDialog(mainWindow)();
+      openHelp();
       // Then
-      expect(mockBrowserView.webContents.loadURL).toHaveBeenCalledTimes(1);
-      expect(mockBrowserView.webContents.loadURL).toHaveBeenCalledWith(expect.stringMatching(/.+?\/index.html$/));
-      expect(mockBrowserView.webContents.on).toHaveBeenCalledWith('will-navigate', expect.any(Function));
+      expect(electron.browserViewInstance.webContents.loadURL).toHaveBeenCalledTimes(1);
+      expect(electron.browserViewInstance.webContents.loadURL)
+        .toHaveBeenCalledWith(expect.stringMatching(/.+?\/index.html$/)); // NOSONAR
+      expect(electron.browserViewInstance.webContents.on).toHaveBeenCalledWith('will-navigate', expect.any(Function));
     });
   });
 });

@@ -13,13 +13,14 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-const {app, BrowserView, Menu, MenuItem, session} = require('electron');
+const {app, BrowserView, session} = require('electron');
 const path = require('path');
 const {APP_EVENTS} = require('../constants');
-const settings = require('../settings');
-const {contextMenuHandler} = require('../spell-check');
+const {loadSettings, updateSettings} = require('../settings');
+const {getEnabledDictionaries, getUseNativeSpellChecker} = require('../spell-check');
 const {userAgentForView, addUserAgentInterceptor} = require('../user-agent');
-const {handleRedirect} = require('./redirect');
+const {handleContextMenu} = require('./context-menu');
+const {handleRedirect, windowOpenHandler} = require('./redirect');
 
 let activeTab = null;
 const tabs = {};
@@ -55,20 +56,6 @@ const handlePageFaviconUpdated = (browserView, ipcSender, tabId) => async (_e, f
   }
 };
 
-const handleContextMenu = browserView => async (event, params) => {
-  const {webContents} = browserView;
-  const menu = new Menu();
-
-  const spellingSuggestions = await contextMenuHandler(event, params, webContents);
-  if (spellingSuggestions.length > 0) {
-    spellingSuggestions.forEach(mi => menu.append(mi));
-    menu.append(new MenuItem({type: 'separator'}));
-  }
-  menu.append(new MenuItem({label: 'DevTools', click: () => webContents.openDevTools()}));
-  const {x, y} = params;
-  menu.popup({x, y});
-};
-
 // Required for Service Workers -> https://github.com/electron/electron/issues/16196
 const setGlobalUserAgentFallback = userAgent => (app.userAgentFallback = userAgent);
 
@@ -79,6 +66,8 @@ const cleanUserAgent = browserView => {
 };
 
 const addTabs = ipcSender => tabsMetadata => {
+  const useNativeSpellChecker = getUseNativeSpellChecker();
+  const enabledDictionaries = getEnabledDictionaries();
   tabsMetadata.forEach(({id, url, sandboxed = false}) => {
     const tabPreferences = {...webPreferences};
     if (sandboxed) {
@@ -87,15 +76,27 @@ const addTabs = ipcSender => tabsMetadata => {
       tabPreferences.session = session.defaultSession;
     }
     addUserAgentInterceptor(tabPreferences.session);
+
+    tabPreferences.session.spellcheck = useNativeSpellChecker;
+    if (useNativeSpellChecker) {
+      tabPreferences.session.setSpellCheckerEnabled(true);
+      tabPreferences.session.setSpellCheckerLanguages(tabPreferences.session.availableSpellCheckerLanguages
+        .filter(lang => enabledDictionaries.includes(lang)));
+    }
+
+
+    tabPreferences.experiment = false;
+    if (tabPreferences.experiment) { // USE NATIVE SPELL CHECKER
+      tabPreferences.session.setSpellCheckerDictionaryDownloadURL('file:///home/user/00-MN/projects/manusa/electronim/dictionaries/');
+    }
     const tab = new BrowserView({webPreferences: tabPreferences});
-    tab.setAutoResize({width: true, height: true});
+    tab.setAutoResize({width: false, horizontal: false, height: false, vertical: false});
 
     cleanUserAgent(tab);
     tab.webContents.loadURL(url);
 
-    const handleRedirectForCurrentUrl = handleRedirect(tab);
-    tab.webContents.on('will-navigate', handleRedirectForCurrentUrl);
-    tab.webContents.on('new-window', handleRedirectForCurrentUrl);
+    tab.webContents.on('will-navigate', handleRedirect(tab));
+    tab.webContents.setWindowOpenHandler(windowOpenHandler(tab));
 
     const handlePageTitleUpdatedForCurrentTab = handlePageTitleUpdated(ipcSender, id);
     tab.webContents.on('page-title-updated', handlePageTitleUpdatedForCurrentTab);
@@ -119,7 +120,31 @@ const getActiveTab = () => activeTab;
 
 const setActiveTab = tabId => {
   activeTab = tabId.toString();
-  settings.updateSettings({activeTab});
+  updateSettings({activeTab});
+};
+
+const getTabTraverse = operation => () => {
+  const tabIds = Object.keys(tabs);
+  const idx = operation(tabIds.indexOf(getActiveTab()));
+  if (idx < 0) {
+    return tabIds[tabIds.length - 1];
+  } else if (idx >= tabIds.length) {
+    return tabIds[0];
+  }
+  return tabIds[idx];
+};
+
+const getNextTab = getTabTraverse(idx => idx + 1);
+const getPreviousTab = getTabTraverse(idx => idx - 1);
+const getTabAt = position => {
+  const tabIds = Object.keys(tabs);
+  const idx = position - 1;
+  if (idx > 0 && idx < tabIds.length) {
+    return tabIds[idx];
+  } else if (idx < 1) {
+    return tabIds[0];
+  }
+  return tabIds[tabIds.length - 1];
 };
 
 const removeAll = () => {
@@ -130,7 +155,7 @@ const removeAll = () => {
 const reload = () => Object.values(tabs).forEach(browserView => browserView.webContents.reload());
 
 const canNotify = tabId => {
-  const {tabs: tabsSettings, disableNotificationsGlobally} = settings.loadSettings();
+  const {tabs: tabsSettings, disableNotificationsGlobally} = loadSettings();
   const currentTab = tabsSettings.find(tab => tab.id === tabId);
   if (disableNotificationsGlobally === true) {
     return false;
@@ -139,5 +164,5 @@ const canNotify = tabId => {
 };
 
 module.exports = {
-  addTabs, getTab, getActiveTab, setActiveTab, canNotify, reload, removeAll
+  addTabs, getTab, getTabAt, getActiveTab, setActiveTab, getNextTab, getPreviousTab, canNotify, reload, removeAll
 };
